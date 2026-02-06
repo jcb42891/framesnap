@@ -6,12 +6,12 @@ public sealed class MonitorInfoProvider
 {
     private const uint MonitorDefaultToNearest = 2;
 
-    public bool TryGetMonitorBoundsForPoint(int x, int y, out Core.PixelRect bounds)
+    public bool TryGetMonitorForPoint(int x, int y, out MonitorDetails monitorDetails)
     {
-        bounds = default;
+        monitorDetails = default;
         var point = new PointStruct(x, y);
-        var monitor = MonitorFromPoint(point, MonitorDefaultToNearest);
-        if (monitor == IntPtr.Zero)
+        var monitorHandle = MonitorFromPoint(point, MonitorDefaultToNearest);
+        if (monitorHandle == IntPtr.Zero)
         {
             return false;
         }
@@ -21,16 +21,17 @@ public sealed class MonitorInfoProvider
             cbSize = Marshal.SizeOf<MonitorInfoEx>()
         };
 
-        if (!GetMonitorInfo(monitor, ref info))
+        if (!GetMonitorInfo(monitorHandle, ref info))
         {
             return false;
         }
 
-        bounds = new Core.PixelRect(
+        var bounds = new Core.PixelRect(
             info.rcMonitor.Left,
             info.rcMonitor.Top,
             info.rcMonitor.Right - info.rcMonitor.Left,
             info.rcMonitor.Bottom - info.rcMonitor.Top);
+        monitorDetails = new MonitorDetails(monitorHandle, bounds);
 
         return true;
     }

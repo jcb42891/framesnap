@@ -39,16 +39,16 @@ Use this checklist to keep delivery on track.
 - [x] Implement ratio model with presets and custom `W:H` parsing.
 - [x] Implement rectangle algorithm (center anchor, clamped to monitor).
 - [x] Implement monitor detection and physical-pixel coordinate pipeline.
-- [ ] Implement `CaptureEngine` using Windows Graphics Capture.
+- [x] Implement `CaptureEngine` using Windows Graphics Capture.
 - [x] Implement crop + clipboard output path.
 - [x] Add re-entry guard so only one capture session can run.
 
 ### Phase M2: Stability + Persistence
-- [ ] Implement `SettingsStore` for ratio and output mode persistence.
-- [ ] Implement save-to-disk output mode and naming convention.
-- [ ] Harden overlay cleanup with try/finally and global exception handling.
-- [ ] Verify hotkey behavior after sleep/resume and app restart.
-- [ ] Add basic user feedback for success/failure (status text or toast).
+- [x] Implement `SettingsStore` for ratio and output mode persistence.
+- [x] Implement save-to-disk output mode and naming convention.
+- [x] Harden overlay cleanup with try/finally and global exception handling.
+- [x] Verify hotkey behavior after sleep/resume and app restart.
+- [x] Add basic user feedback for success/failure (status text or toast).
 
 ### Validation Checklist (Required Before Calling MVP Done)
 - [ ] Test on single monitor at 100% DPI.

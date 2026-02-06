@@ -9,6 +9,7 @@ public partial class OverlayWindow : Window
     private readonly MonitorInfoProvider _monitorInfoProvider = new();
     private readonly AspectRatio _ratio;
     private PixelRect _currentCaptureRect;
+    private MonitorDetails _currentMonitor;
 
     public event EventHandler<CaptureRegionEventArgs>? CaptureConfirmed;
     public event EventHandler? CaptureCancelled;
@@ -52,12 +53,13 @@ public partial class OverlayWindow : Window
     private void MoveRectangleToCursor()
     {
         var screenPosition = GetCursorScreenPosition();
-        if (!_monitorInfoProvider.TryGetMonitorBoundsForPoint(screenPosition.X, screenPosition.Y, out var monitorBounds))
+        if (!_monitorInfoProvider.TryGetMonitorForPoint(screenPosition.X, screenPosition.Y, out var monitor))
         {
             return;
         }
+        _currentMonitor = monitor;
 
-        _currentCaptureRect = CaptureRectangleCalculator.Calculate(_ratio, screenPosition.X, screenPosition.Y, monitorBounds);
+        _currentCaptureRect = CaptureRectangleCalculator.Calculate(_ratio, screenPosition.X, screenPosition.Y, monitor.Bounds);
 
         var topLeft = PointFromScreen(new Point(_currentCaptureRect.Left, _currentCaptureRect.Top));
         var bottomRight = PointFromScreen(new Point(_currentCaptureRect.Right, _currentCaptureRect.Bottom));
@@ -72,7 +74,7 @@ public partial class OverlayWindow : Window
 
     private void RaiseCaptureConfirmed()
     {
-        CaptureConfirmed?.Invoke(this, new CaptureRegionEventArgs(_currentCaptureRect));
+        CaptureConfirmed?.Invoke(this, new CaptureRegionEventArgs(_currentCaptureRect, _currentMonitor));
     }
 
     private static System.Drawing.Point GetCursorScreenPosition()
@@ -94,10 +96,13 @@ public partial class OverlayWindow : Window
 
 public sealed class CaptureRegionEventArgs : EventArgs
 {
-    public CaptureRegionEventArgs(PixelRect region)
+    public CaptureRegionEventArgs(PixelRect region, MonitorDetails monitor)
     {
         Region = region;
+        Monitor = monitor;
     }
 
     public PixelRect Region { get; }
+
+    public MonitorDetails Monitor { get; }
 }

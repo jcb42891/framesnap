@@ -1,4 +1,6 @@
 using System.Windows;
+using System.Threading.Tasks;
+using FrameSnap.Settings;
 using FrameSnap.Shell;
 
 namespace FrameSnap;
@@ -10,13 +12,15 @@ public partial class App : Application
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        _trayShell = new TrayShell();
+        RegisterGlobalExceptionHandlers();
+        _trayShell = new TrayShell(new SettingsStore());
         _trayShell.CaptureRequested += OnCaptureRequested;
         _trayShell.Start();
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        UnregisterGlobalExceptionHandlers();
         if (_trayShell is not null)
         {
             _trayShell.CaptureRequested -= OnCaptureRequested;
@@ -34,5 +38,37 @@ public partial class App : Application
         }
 
         _trayShell.ShowOverlay();
+    }
+
+    private void RegisterGlobalExceptionHandlers()
+    {
+        DispatcherUnhandledException += OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+        TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
+    }
+
+    private void UnregisterGlobalExceptionHandlers()
+    {
+        DispatcherUnhandledException -= OnDispatcherUnhandledException;
+        AppDomain.CurrentDomain.UnhandledException -= OnUnhandledException;
+        TaskScheduler.UnobservedTaskException -= OnUnobservedTaskException;
+    }
+
+    private void OnDispatcherUnhandledException(object sender, System.Windows.Threading.DispatcherUnhandledExceptionEventArgs e)
+    {
+        _trayShell?.ShowStatus("FrameSnap Error", e.Exception.Message, System.Windows.Forms.ToolTipIcon.Error);
+        e.Handled = true;
+    }
+
+    private void OnUnhandledException(object? sender, UnhandledExceptionEventArgs e)
+    {
+        var message = e.ExceptionObject is Exception ex ? ex.Message : "Unhandled exception occurred.";
+        _trayShell?.ShowStatus("FrameSnap Error", message, System.Windows.Forms.ToolTipIcon.Error);
+    }
+
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    {
+        _trayShell?.ShowStatus("FrameSnap Error", e.Exception.Message, System.Windows.Forms.ToolTipIcon.Error);
+        e.SetObserved();
     }
 }

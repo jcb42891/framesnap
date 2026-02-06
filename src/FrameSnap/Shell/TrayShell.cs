@@ -3,6 +3,8 @@ using FrameSnap.Core;
 using FrameSnap.Input;
 using FrameSnap.Overlay;
 using FrameSnap.Output;
+using FrameSnap.Settings;
+using Microsoft.Win32;
 using WinForms = System.Windows.Forms;
 
 namespace FrameSnap.Shell;
@@ -13,16 +15,28 @@ public sealed class TrayShell : IDisposable
     private readonly HotkeyManager _hotkeyManager;
     private readonly CaptureEngine _captureEngine;
     private readonly ClipboardOutputService _clipboardOutputService;
+    private readonly FileOutputService _fileOutputService;
+    private readonly SettingsStore _settingsStore;
+    private readonly CaptureSettings _settings;
     private OverlayWindow? _overlay;
-    private AspectRatio _selectedRatio = AspectRatio.Presets[0];
+    private AspectRatio _selectedRatio;
+    private OutputMode _outputMode;
+    private WinForms.ToolStripMenuItem? _ratioMenuItem;
+    private WinForms.ToolStripMenuItem? _outputMenuItem;
     private bool _captureSessionActive;
 
     public event EventHandler? CaptureRequested;
 
-    public TrayShell()
+    public TrayShell(SettingsStore settingsStore)
     {
+        _settingsStore = settingsStore;
+        _settings = _settingsStore.Load();
+        _selectedRatio = AspectRatio.TryParse(_settings.AspectRatio, out var parsedRatio) ? parsedRatio : AspectRatio.Presets[0];
+        _outputMode = _settings.OutputMode;
+
         _captureEngine = new CaptureEngine();
         _clipboardOutputService = new ClipboardOutputService();
+        _fileOutputService = new FileOutputService();
         _hotkeyManager = new HotkeyManager();
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
 
@@ -38,6 +52,7 @@ public sealed class TrayShell : IDisposable
     public void Start()
     {
         _hotkeyManager.RegisterDefaultHotkey();
+        SystemEvents.PowerModeChanged += OnPowerModeChanged;
         _notifyIcon.Visible = true;
     }
 
@@ -62,6 +77,7 @@ public sealed class TrayShell : IDisposable
     {
         CloseOverlay();
         _hotkeyManager.HotkeyPressed -= OnHotkeyPressed;
+        SystemEvents.PowerModeChanged -= OnPowerModeChanged;
         _hotkeyManager.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
@@ -72,7 +88,8 @@ public sealed class TrayShell : IDisposable
         var menu = new WinForms.ContextMenuStrip();
 
         var captureItem = new WinForms.ToolStripMenuItem("Capture", null, (_, _) => CaptureRequested?.Invoke(this, EventArgs.Empty));
-        var ratioItem = new WinForms.ToolStripMenuItem("Ratio");
+        _ratioMenuItem = new WinForms.ToolStripMenuItem("Ratio");
+        _outputMenuItem = new WinForms.ToolStripMenuItem("Output");
 
         foreach (var ratio in AspectRatio.Presets)
         {
@@ -80,22 +97,38 @@ public sealed class TrayShell : IDisposable
             {
                 Checked = ratio == _selectedRatio
             };
-            item.Click += (_, _) => SelectRatio(ratioItem, ratio);
-            ratioItem.DropDownItems.Add(item);
+            item.Click += (_, _) => SelectRatio(ratio);
+            _ratioMenuItem.DropDownItems.Add(item);
         }
 
         var customRatioItem = new WinForms.ToolStripMenuItem("Custom...")
         {
             ToolTipText = "Enter ratio as W:H in the popup."
         };
-        customRatioItem.Click += (_, _) => OpenCustomRatioPrompt(ratioItem);
-        ratioItem.DropDownItems.Add(new WinForms.ToolStripSeparator());
-        ratioItem.DropDownItems.Add(customRatioItem);
+        customRatioItem.Click += (_, _) => OpenCustomRatioPrompt();
+        _ratioMenuItem.DropDownItems.Add(new WinForms.ToolStripSeparator());
+        _ratioMenuItem.DropDownItems.Add(customRatioItem);
+
+        var clipboardOnlyItem = new WinForms.ToolStripMenuItem("Clipboard Only")
+        {
+            Checked = _outputMode == OutputMode.ClipboardOnly
+        };
+        clipboardOnlyItem.Click += (_, _) => SelectOutputMode(OutputMode.ClipboardOnly);
+
+        var clipboardAndSaveItem = new WinForms.ToolStripMenuItem("Clipboard + Save")
+        {
+            Checked = _outputMode == OutputMode.ClipboardAndSave
+        };
+        clipboardAndSaveItem.Click += (_, _) => SelectOutputMode(OutputMode.ClipboardAndSave);
+
+        _outputMenuItem.DropDownItems.Add(clipboardOnlyItem);
+        _outputMenuItem.DropDownItems.Add(clipboardAndSaveItem);
 
         var exitItem = new WinForms.ToolStripMenuItem("Exit", null, (_, _) => System.Windows.Application.Current.Shutdown());
 
         menu.Items.Add(captureItem);
-        menu.Items.Add(ratioItem);
+        menu.Items.Add(_ratioMenuItem);
+        menu.Items.Add(_outputMenuItem);
         menu.Items.Add(new WinForms.ToolStripSeparator());
         menu.Items.Add(exitItem);
 
@@ -109,17 +142,31 @@ public sealed class TrayShell : IDisposable
 
     private void OnCaptureConfirmed(object? sender, CaptureRegionEventArgs e)
     {
+        string? savedPath = null;
+        var success = false;
+        var errorMessage = string.Empty;
+
         try
         {
-            var image = _captureEngine.CaptureRegion(e.Region);
+            var image = _captureEngine.CaptureRegion(e.Region, e.Monitor);
             _clipboardOutputService.CopyImage(image);
+            if (_outputMode == OutputMode.ClipboardAndSave)
+            {
+                savedPath = _fileOutputService.SavePng(image);
+            }
+
+            success = true;
         }
-        catch
+        catch (Exception ex)
         {
-            // Keep MVP resilient: capture errors should not leave overlay stuck.
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            CloseOverlay();
         }
 
-        CloseOverlay();
+        ShowCaptureStatus(success, savedPath, errorMessage);
     }
 
     private void OnCaptureCancelled(object? sender, EventArgs e)
@@ -153,10 +200,18 @@ public sealed class TrayShell : IDisposable
         _captureSessionActive = false;
     }
 
-    private void SelectRatio(WinForms.ToolStripMenuItem ratioMenuItem, AspectRatio ratio)
+    private void SelectRatio(AspectRatio ratio)
     {
         _selectedRatio = ratio;
-        foreach (WinForms.ToolStripItem item in ratioMenuItem.DropDownItems)
+        _settings.AspectRatio = ratio.ToString();
+        SaveSettings();
+
+        if (_ratioMenuItem is null)
+        {
+            return;
+        }
+
+        foreach (WinForms.ToolStripItem item in _ratioMenuItem.DropDownItems)
         {
             if (item is WinForms.ToolStripMenuItem menuItem && AspectRatio.TryParse(menuItem.Text ?? string.Empty, out var menuRatio))
             {
@@ -165,7 +220,7 @@ public sealed class TrayShell : IDisposable
         }
     }
 
-    private void OpenCustomRatioPrompt(WinForms.ToolStripMenuItem ratioMenuItem)
+    private void OpenCustomRatioPrompt()
     {
         var result = WinForms.MessageBox.Show(
             "Use the format W:H (example: 5:4). Click OK to enter it now.",
@@ -218,6 +273,78 @@ public sealed class TrayShell : IDisposable
             return;
         }
 
-        SelectRatio(ratioMenuItem, customRatio);
+        SelectRatio(customRatio);
+    }
+
+    private void SelectOutputMode(OutputMode outputMode)
+    {
+        _outputMode = outputMode;
+        _settings.OutputMode = outputMode;
+        SaveSettings();
+
+        if (_outputMenuItem is null)
+        {
+            return;
+        }
+
+        foreach (WinForms.ToolStripItem item in _outputMenuItem.DropDownItems)
+        {
+            if (item is not WinForms.ToolStripMenuItem menuItem)
+            {
+                continue;
+            }
+
+            menuItem.Checked = (outputMode == OutputMode.ClipboardOnly && menuItem.Text == "Clipboard Only")
+                || (outputMode == OutputMode.ClipboardAndSave && menuItem.Text == "Clipboard + Save");
+        }
+    }
+
+    private void SaveSettings()
+    {
+        try
+        {
+            _settingsStore.Save(_settings);
+        }
+        catch
+        {
+            // Non-fatal: app should continue even if settings cannot persist.
+        }
+    }
+
+    private void ShowCaptureStatus(bool success, string? savedPath, string errorMessage)
+    {
+        if (success)
+        {
+            if (string.IsNullOrWhiteSpace(savedPath))
+            {
+                ShowStatus("FrameSnap", "Copied to clipboard.");
+                return;
+            }
+
+            ShowStatus("FrameSnap", $"Copied and saved to {savedPath}");
+            return;
+        }
+
+        var message = string.IsNullOrWhiteSpace(errorMessage) ? "Capture failed." : $"Capture failed: {errorMessage}";
+        ShowStatus("FrameSnap Error", message, WinForms.ToolTipIcon.Error);
+    }
+
+    public void ShowStatus(string title, string text, WinForms.ToolTipIcon icon = WinForms.ToolTipIcon.Info)
+    {
+        _notifyIcon.BalloonTipTitle = title;
+        _notifyIcon.BalloonTipText = text;
+        _notifyIcon.BalloonTipIcon = icon;
+        _notifyIcon.ShowBalloonTip(2500);
+    }
+
+    private void OnPowerModeChanged(object? sender, PowerModeChangedEventArgs e)
+    {
+        if (e.Mode != PowerModes.Resume)
+        {
+            return;
+        }
+
+        _hotkeyManager.UnregisterDefaultHotkey();
+        _hotkeyManager.RegisterDefaultHotkey();
     }
 }
