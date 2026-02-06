@@ -20,7 +20,7 @@ public sealed class TrayShell : IDisposable
     private readonly SettingsStore _settingsStore;
     private readonly CaptureSettings _settings;
     private OverlayWindow? _overlay;
-    private AspectRatio _selectedRatio;
+    private CaptureFrameSpec _selectedFrameSpec;
     private OutputMode _outputMode;
     private WinForms.ToolStripMenuItem? _ratioMenuItem;
     private WinForms.ToolStripMenuItem? _outputMenuItem;
@@ -32,7 +32,9 @@ public sealed class TrayShell : IDisposable
     {
         _settingsStore = settingsStore;
         _settings = _settingsStore.Load();
-        _selectedRatio = AspectRatio.TryParse(_settings.AspectRatio, out var parsedRatio) ? parsedRatio : AspectRatio.Presets[0];
+        _selectedFrameSpec = CaptureFrameSpec.TryParse(_settings.AspectRatio, out var parsedFrameSpec)
+            ? parsedFrameSpec
+            : CaptureFrameSpec.FromRatio(AspectRatio.Presets[0]);
         _outputMode = _settings.OutputMode;
 
         _captureEngine = new CaptureEngine();
@@ -65,7 +67,7 @@ public sealed class TrayShell : IDisposable
         }
 
         _captureSessionActive = true;
-        _overlay = new OverlayWindow(_selectedRatio);
+        _overlay = new OverlayWindow(_selectedFrameSpec);
         _overlay.CaptureConfirmed += OnCaptureConfirmed;
         _overlay.CaptureCancelled += OnCaptureCancelled;
         _overlay.Closed += OnOverlayClosed;
@@ -96,7 +98,7 @@ public sealed class TrayShell : IDisposable
         {
             var item = new WinForms.ToolStripMenuItem(ratio.ToString())
             {
-                Checked = ratio == _selectedRatio
+                Checked = _selectedFrameSpec.Mode == CaptureFrameMode.AspectRatio && ratio == _selectedFrameSpec.ToAspectRatio()
             };
             item.Click += (_, _) => SelectRatio(ratio);
             _ratioMenuItem.DropDownItems.Add(item);
@@ -104,7 +106,7 @@ public sealed class TrayShell : IDisposable
 
         var customRatioItem = new WinForms.ToolStripMenuItem("Custom...")
         {
-            ToolTipText = "Enter ratio as W:H in the popup."
+            ToolTipText = "Enter W:H for ratio mode or WxH for exact pixel mode."
         };
         customRatioItem.Click += (_, _) => OpenCustomRatioPrompt();
         _ratioMenuItem.DropDownItems.Add(new WinForms.ToolStripSeparator());
@@ -202,29 +204,14 @@ public sealed class TrayShell : IDisposable
 
     private void SelectRatio(AspectRatio ratio)
     {
-        _selectedRatio = ratio;
-        _settings.AspectRatio = ratio.ToString();
-        SaveSettings();
-
-        if (_ratioMenuItem is null)
-        {
-            return;
-        }
-
-        foreach (WinForms.ToolStripItem item in _ratioMenuItem.DropDownItems)
-        {
-            if (item is WinForms.ToolStripMenuItem menuItem && AspectRatio.TryParse(menuItem.Text ?? string.Empty, out var menuRatio))
-            {
-                menuItem.Checked = menuRatio == ratio;
-            }
-        }
+        SelectFrameSpec(CaptureFrameSpec.FromRatio(ratio));
     }
 
     private void OpenCustomRatioPrompt()
     {
         var result = WinForms.MessageBox.Show(
-            "Use the format W:H (example: 5:4). Click OK to enter it now.",
-            "Custom Ratio",
+            "Use W:H (example: 5:4) for ratio mode, or WxH (example: 1920x1080) for exact pixels.",
+            "Custom Capture Size",
             WinForms.MessageBoxButtons.OKCancel,
             WinForms.MessageBoxIcon.Information);
 
@@ -237,7 +224,7 @@ public sealed class TrayShell : IDisposable
         {
             Width = 280,
             Height = 140,
-            Text = "Set Custom Ratio",
+            Text = "Set Custom Capture",
             StartPosition = WinForms.FormStartPosition.CenterScreen,
             FormBorderStyle = WinForms.FormBorderStyle.FixedDialog,
             MinimizeBox = false,
@@ -248,7 +235,7 @@ public sealed class TrayShell : IDisposable
             Left = 20,
             Top = 20,
             Width = 220,
-            Text = _selectedRatio.ToString()
+            Text = _selectedFrameSpec.ToString()
         };
         var okButton = new WinForms.Button
         {
@@ -267,13 +254,41 @@ public sealed class TrayShell : IDisposable
             return;
         }
 
-        if (!AspectRatio.TryParse(textBox.Text, out var customRatio))
+        if (!CaptureFrameSpec.TryParse(textBox.Text, out var customFrameSpec))
         {
-            WinForms.MessageBox.Show("Invalid ratio format. Expected W:H with positive integers.", "Invalid Ratio", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
+            WinForms.MessageBox.Show("Invalid format. Use W:H for ratio mode or WxH for exact pixel mode.", "Invalid Capture Format", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
             return;
         }
 
-        SelectRatio(customRatio);
+        SelectFrameSpec(customFrameSpec);
+    }
+
+    private void SelectFrameSpec(CaptureFrameSpec frameSpec)
+    {
+        _selectedFrameSpec = frameSpec;
+        _settings.AspectRatio = frameSpec.ToString();
+        SaveSettings();
+
+        if (_ratioMenuItem is null)
+        {
+            return;
+        }
+
+        foreach (WinForms.ToolStripItem item in _ratioMenuItem.DropDownItems)
+        {
+            if (item is not WinForms.ToolStripMenuItem menuItem)
+            {
+                continue;
+            }
+
+            if (!AspectRatio.TryParse(menuItem.Text ?? string.Empty, out var menuRatio))
+            {
+                menuItem.Checked = false;
+                continue;
+            }
+
+            menuItem.Checked = frameSpec.Mode == CaptureFrameMode.AspectRatio && menuRatio == frameSpec.ToAspectRatio();
+        }
     }
 
     private void SelectOutputMode(OutputMode outputMode)

@@ -8,7 +8,7 @@ namespace FrameSnap.Overlay;
 public partial class OverlayWindow : Window
 {
     private readonly MonitorInfoProvider _monitorInfoProvider = new();
-    private readonly AspectRatio _ratio;
+    private readonly CaptureFrameSpec _frameSpec;
     private PixelRect _currentCaptureRect;
     private PixelRect _lastRenderedCaptureRect;
     private MonitorDetails _currentMonitor;
@@ -19,9 +19,9 @@ public partial class OverlayWindow : Window
     public event EventHandler<CaptureRegionEventArgs>? CaptureConfirmed;
     public event EventHandler? CaptureCancelled;
 
-    public OverlayWindow(AspectRatio ratio)
+    public OverlayWindow(CaptureFrameSpec frameSpec)
     {
-        _ratio = ratio;
+        _frameSpec = frameSpec;
         InitializeComponent();
         WindowStartupLocation = WindowStartupLocation.Manual;
         Left = SystemParameters.VirtualScreenLeft;
@@ -78,7 +78,7 @@ public partial class OverlayWindow : Window
         }
         _currentMonitor = monitor;
 
-        _currentCaptureRect = CaptureRectangleCalculator.Calculate(_ratio, screenPosition.X, screenPosition.Y, monitor.Bounds);
+        _currentCaptureRect = CaptureRectangleCalculator.Calculate(_frameSpec, screenPosition.X, screenPosition.Y, monitor.Bounds);
         if (_hasRenderedCaptureRect && _currentCaptureRect == _lastRenderedCaptureRect)
         {
             return;
