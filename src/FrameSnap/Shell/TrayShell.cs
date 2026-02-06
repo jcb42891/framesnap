@@ -5,6 +5,7 @@ using FrameSnap.Overlay;
 using FrameSnap.Output;
 using FrameSnap.Settings;
 using Microsoft.Win32;
+using System.Threading.Tasks;
 using WinForms = System.Windows.Forms;
 
 namespace FrameSnap.Shell;
@@ -140,7 +141,7 @@ public sealed class TrayShell : IDisposable
         CaptureRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnCaptureConfirmed(object? sender, CaptureRegionEventArgs e)
+    private async void OnCaptureConfirmed(object? sender, CaptureRegionEventArgs e)
     {
         string? savedPath = null;
         var success = false;
@@ -148,6 +149,9 @@ public sealed class TrayShell : IDisposable
 
         try
         {
+            CloseOverlay();
+            await Task.Delay(50);
+
             var image = _captureEngine.CaptureRegion(e.Region, e.Monitor);
             _clipboardOutputService.CopyImage(image);
             if (_outputMode == OutputMode.ClipboardAndSave)
@@ -160,10 +164,6 @@ public sealed class TrayShell : IDisposable
         catch (Exception ex)
         {
             errorMessage = ex.Message;
-        }
-        finally
-        {
-            CloseOverlay();
         }
 
         ShowCaptureStatus(success, savedPath, errorMessage);

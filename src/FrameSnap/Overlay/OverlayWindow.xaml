@@ -3,19 +3,25 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="#88000000"
+        Background="Transparent"
         ResizeMode="NoResize"
         Topmost="True"
         ShowInTaskbar="False"
         KeyDown="OnOverlayKeyDown"
         MouseMove="OnOverlayMouseMove"
-        MouseLeftButtonDown="OnOverlayMouseLeftButtonDown">
+        PreviewMouseLeftButtonDown="OnOverlayMouseLeftButtonDown">
     <Canvas>
+        <Rectangle x:Name="InputSurface"
+                   Fill="#01000000"
+                   Width="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ActualWidth}"
+                   Height="{Binding RelativeSource={RelativeSource AncestorType=Window}, Path=ActualHeight}" />
+        <Path x:Name="ShadeMask" Fill="#88000000" IsHitTestVisible="False" />
         <Border x:Name="CaptureRect"
                 Width="640"
                 Height="360"
                 BorderBrush="#FFFFFFFF"
                 BorderThickness="2"
-                Background="#22FFFFFF" />
+                Background="Transparent"
+                IsHitTestVisible="False" />
     </Canvas>
 </Window>

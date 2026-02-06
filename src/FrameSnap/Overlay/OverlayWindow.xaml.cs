@@ -1,4 +1,5 @@
 using System.Windows.Input;
+using System.Windows.Media;
 using FrameSnap.Core;
 using FrameSnap.Platform;
 
@@ -9,7 +10,11 @@ public partial class OverlayWindow : Window
     private readonly MonitorInfoProvider _monitorInfoProvider = new();
     private readonly AspectRatio _ratio;
     private PixelRect _currentCaptureRect;
+    private PixelRect _lastRenderedCaptureRect;
     private MonitorDetails _currentMonitor;
+    private bool _hasRenderedCaptureRect;
+    private System.Drawing.Point _lastCursorScreenPosition;
+    private bool _hasLastCursorScreenPosition;
 
     public event EventHandler<CaptureRegionEventArgs>? CaptureConfirmed;
     public event EventHandler? CaptureCancelled;
@@ -23,7 +28,13 @@ public partial class OverlayWindow : Window
         Top = SystemParameters.VirtualScreenTop;
         Width = SystemParameters.VirtualScreenWidth;
         Height = SystemParameters.VirtualScreenHeight;
-        Loaded += (_, _) => MoveRectangleToCursor();
+        SizeChanged += (_, _) => UpdateShadeRegions();
+        Loaded += (_, _) =>
+        {
+            CompositionTarget.Rendering += OnCompositionTargetRendering;
+            MoveRectangleToCursor();
+        };
+        Closed += (_, _) => CompositionTarget.Rendering -= OnCompositionTargetRendering;
     }
 
     private void OnOverlayMouseMove(object sender, MouseEventArgs e)
@@ -53,6 +64,14 @@ public partial class OverlayWindow : Window
     private void MoveRectangleToCursor()
     {
         var screenPosition = GetCursorScreenPosition();
+        if (_hasLastCursorScreenPosition && screenPosition == _lastCursorScreenPosition)
+        {
+            return;
+        }
+
+        _lastCursorScreenPosition = screenPosition;
+        _hasLastCursorScreenPosition = true;
+
         if (!_monitorInfoProvider.TryGetMonitorForPoint(screenPosition.X, screenPosition.Y, out var monitor))
         {
             return;
@@ -60,6 +79,10 @@ public partial class OverlayWindow : Window
         _currentMonitor = monitor;
 
         _currentCaptureRect = CaptureRectangleCalculator.Calculate(_ratio, screenPosition.X, screenPosition.Y, monitor.Bounds);
+        if (_hasRenderedCaptureRect && _currentCaptureRect == _lastRenderedCaptureRect)
+        {
+            return;
+        }
 
         var topLeft = PointFromScreen(new Point(_currentCaptureRect.Left, _currentCaptureRect.Top));
         var bottomRight = PointFromScreen(new Point(_currentCaptureRect.Right, _currentCaptureRect.Bottom));
@@ -68,8 +91,14 @@ public partial class OverlayWindow : Window
 
         CaptureRect.Width = width;
         CaptureRect.Height = height;
-        System.Windows.Controls.Canvas.SetLeft(CaptureRect, topLeft.X);
-        System.Windows.Controls.Canvas.SetTop(CaptureRect, topLeft.Y);
+        var captureLeft = topLeft.X;
+        var captureTop = topLeft.Y;
+        System.Windows.Controls.Canvas.SetLeft(CaptureRect, captureLeft);
+        System.Windows.Controls.Canvas.SetTop(CaptureRect, captureTop);
+
+        UpdateShadeRegions(captureLeft, captureTop, width, height);
+        _lastRenderedCaptureRect = _currentCaptureRect;
+        _hasRenderedCaptureRect = true;
     }
 
     private void RaiseCaptureConfirmed()
@@ -77,10 +106,74 @@ public partial class OverlayWindow : Window
         CaptureConfirmed?.Invoke(this, new CaptureRegionEventArgs(_currentCaptureRect, _currentMonitor));
     }
 
+    private void OnCompositionTargetRendering(object? sender, EventArgs e)
+    {
+        MoveRectangleToCursor();
+    }
+
     private static System.Drawing.Point GetCursorScreenPosition()
     {
         GetCursorPos(out var point);
         return new System.Drawing.Point(point.X, point.Y);
+    }
+
+    private void UpdateShadeRegions()
+    {
+        var captureLeft = System.Windows.Controls.Canvas.GetLeft(CaptureRect);
+        var captureTop = System.Windows.Controls.Canvas.GetTop(CaptureRect);
+        if (double.IsNaN(captureLeft) || double.IsNaN(captureTop))
+        {
+            return;
+        }
+
+        UpdateShadeRegions(captureLeft, captureTop, CaptureRect.Width, CaptureRect.Height);
+    }
+
+    private void UpdateShadeRegions(double captureLeft, double captureTop, double captureWidth, double captureHeight)
+    {
+        var overlayWidth = Math.Max(0, ActualWidth);
+        var overlayHeight = Math.Max(0, ActualHeight);
+        if (overlayWidth <= 0 || overlayHeight <= 0)
+        {
+            return;
+        }
+
+        captureLeft = Math.Clamp(captureLeft, 0, overlayWidth);
+        captureTop = Math.Clamp(captureTop, 0, overlayHeight);
+        var captureRight = Math.Clamp(captureLeft + captureWidth, 0, overlayWidth);
+        var captureBottom = Math.Clamp(captureTop + captureHeight, 0, overlayHeight);
+
+        var geometry = new StreamGeometry
+        {
+            FillRule = FillRule.EvenOdd
+        };
+
+        using (var context = geometry.Open())
+        {
+            AddRectangle(context, 0, 0, overlayWidth, overlayHeight);
+            AddRectangle(context, captureLeft, captureTop, captureRight - captureLeft, captureBottom - captureTop);
+        }
+
+        geometry.Freeze();
+        ShadeMask.Data = geometry;
+    }
+
+    private static void AddRectangle(StreamGeometryContext context, double left, double top, double width, double height)
+    {
+        if (width <= 0 || height <= 0)
+        {
+            return;
+        }
+
+        var topLeft = new Point(left, top);
+        var topRight = new Point(left + width, top);
+        var bottomRight = new Point(left + width, top + height);
+        var bottomLeft = new Point(left, top + height);
+
+        context.BeginFigure(topLeft, isFilled: true, isClosed: true);
+        context.LineTo(topRight, isStroked: false, isSmoothJoin: false);
+        context.LineTo(bottomRight, isStroked: false, isSmoothJoin: false);
+        context.LineTo(bottomLeft, isStroked: false, isSmoothJoin: false);
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
