@@ -104,28 +104,18 @@ public partial class MainWindow : Window
 
     private void PromptForCustomCaptureSize()
     {
-        var input = Microsoft.VisualBasic.Interaction.InputBox(
-            "Use W:H (example: 5:4) for ratio mode, or WxH (example: 1920x1080) for exact pixels.",
-            "Custom Capture Size",
-            _trayShell.SelectedFrameSpec.ToString());
+        var dialog = new CustomCaptureSizeDialog(_trayShell.SelectedFrameSpec)
+        {
+            Owner = this
+        };
 
-        if (string.IsNullOrWhiteSpace(input))
+        if (dialog.ShowDialog() != true || dialog.SelectedFrameSpec is null)
         {
             SyncFromSettings();
             return;
         }
 
-        if (!_trayShell.TryUpdateFrameSpec(input.Trim()))
-        {
-            System.Windows.MessageBox.Show(
-                "Invalid format. Use W:H for ratio mode or WxH for exact pixel mode.",
-                "Invalid Capture Format",
-                MessageBoxButton.OK,
-                MessageBoxImage.Warning);
-            SyncFromSettings();
-            return;
-        }
-
+        _trayShell.UpdateFrameSpec(dialog.SelectedFrameSpec.Value);
         StatusText.Text = $"Using custom size: {_trayShell.SelectedFrameSpec}";
     }
 

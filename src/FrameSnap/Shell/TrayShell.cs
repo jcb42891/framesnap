@@ -91,17 +91,6 @@ public sealed class TrayShell : IDisposable
         SelectFrameSpec(frameSpec);
     }
 
-    public bool TryUpdateFrameSpec(string input)
-    {
-        if (!CaptureFrameSpec.TryParse(input, out var frameSpec))
-        {
-            return false;
-        }
-
-        SelectFrameSpec(frameSpec);
-        return true;
-    }
-
     public void UpdateOutputMode(OutputMode outputMode)
     {
         SelectOutputMode(outputMode);
@@ -241,58 +230,17 @@ public sealed class TrayShell : IDisposable
 
     private void OpenCustomRatioPrompt()
     {
-        var result = WinForms.MessageBox.Show(
-            "Use W:H (example: 5:4) for ratio mode, or WxH (example: 1920x1080) for exact pixels.",
-            "Custom Capture Size",
-            WinForms.MessageBoxButtons.OKCancel,
-            WinForms.MessageBoxIcon.Information);
+        var dialog = new CustomCaptureSizeDialog(_selectedFrameSpec)
+        {
+            WindowStartupLocation = WindowStartupLocation.CenterScreen
+        };
 
-        if (result != WinForms.DialogResult.OK)
+        if (dialog.ShowDialog() != true || dialog.SelectedFrameSpec is null)
         {
             return;
         }
 
-        using var prompt = new WinForms.Form
-        {
-            Width = 280,
-            Height = 140,
-            Text = "Set Custom Capture",
-            StartPosition = WinForms.FormStartPosition.CenterScreen,
-            FormBorderStyle = WinForms.FormBorderStyle.FixedDialog,
-            MinimizeBox = false,
-            MaximizeBox = false
-        };
-        var textBox = new WinForms.TextBox
-        {
-            Left = 20,
-            Top = 20,
-            Width = 220,
-            Text = _selectedFrameSpec.ToString()
-        };
-        var okButton = new WinForms.Button
-        {
-            Text = "OK",
-            Left = 85,
-            Width = 80,
-            Top = 55,
-            DialogResult = WinForms.DialogResult.OK
-        };
-        prompt.Controls.Add(textBox);
-        prompt.Controls.Add(okButton);
-        prompt.AcceptButton = okButton;
-
-        if (prompt.ShowDialog() != WinForms.DialogResult.OK)
-        {
-            return;
-        }
-
-        if (!CaptureFrameSpec.TryParse(textBox.Text, out var customFrameSpec))
-        {
-            WinForms.MessageBox.Show("Invalid format. Use W:H for ratio mode or WxH for exact pixel mode.", "Invalid Capture Format", WinForms.MessageBoxButtons.OK, WinForms.MessageBoxIcon.Warning);
-            return;
-        }
-
-        SelectFrameSpec(customFrameSpec);
+        SelectFrameSpec(dialog.SelectedFrameSpec.Value);
     }
 
     private void SelectFrameSpec(CaptureFrameSpec frameSpec)
