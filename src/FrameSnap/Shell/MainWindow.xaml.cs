@@ -145,6 +145,12 @@ public partial class MainWindow : Window
 
     private void OnCaptureStatusChanged(object? sender, string status)
     {
+        if (status.StartsWith("Copied snip to", StringComparison.OrdinalIgnoreCase) ||
+            status.StartsWith("Copied and saved to", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         Dispatcher.Invoke(() => StatusText.Text = status);
     }
 }
