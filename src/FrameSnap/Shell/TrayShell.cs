@@ -27,6 +27,7 @@ public sealed class TrayShell : IDisposable
     private bool _captureSessionActive;
 
     public event EventHandler? CaptureRequested;
+    public event EventHandler<string>? CaptureStatusChanged;
 
     public TrayShell(SettingsStore settingsStore)
     {
@@ -52,11 +53,20 @@ public sealed class TrayShell : IDisposable
         };
     }
 
+    public CaptureFrameSpec SelectedFrameSpec => _selectedFrameSpec;
+
+    public OutputMode SelectedOutputMode => _outputMode;
+
     public void Start()
     {
         _hotkeyManager.RegisterDefaultHotkey();
         SystemEvents.PowerModeChanged += OnPowerModeChanged;
         _notifyIcon.Visible = true;
+    }
+
+    public void RequestCapture()
+    {
+        CaptureRequested?.Invoke(this, EventArgs.Empty);
     }
 
     public void ShowOverlay()
@@ -76,6 +86,27 @@ public sealed class TrayShell : IDisposable
         _overlay.Focus();
     }
 
+    public void UpdateFrameSpec(CaptureFrameSpec frameSpec)
+    {
+        SelectFrameSpec(frameSpec);
+    }
+
+    public bool TryUpdateFrameSpec(string input)
+    {
+        if (!CaptureFrameSpec.TryParse(input, out var frameSpec))
+        {
+            return false;
+        }
+
+        SelectFrameSpec(frameSpec);
+        return true;
+    }
+
+    public void UpdateOutputMode(OutputMode outputMode)
+    {
+        SelectOutputMode(outputMode);
+    }
+
     public void Dispose()
     {
         CloseOverlay();
@@ -90,7 +121,7 @@ public sealed class TrayShell : IDisposable
     {
         var menu = new WinForms.ContextMenuStrip();
 
-        var captureItem = new WinForms.ToolStripMenuItem("Capture", null, (_, _) => CaptureRequested?.Invoke(this, EventArgs.Empty));
+        var captureItem = new WinForms.ToolStripMenuItem("Capture", null, (_, _) => RequestCapture());
         _ratioMenuItem = new WinForms.ToolStripMenuItem("Ratio");
         _outputMenuItem = new WinForms.ToolStripMenuItem("Output");
 
@@ -140,7 +171,7 @@ public sealed class TrayShell : IDisposable
 
     private void OnHotkeyPressed(object? sender, EventArgs e)
     {
-        CaptureRequested?.Invoke(this, EventArgs.Empty);
+        RequestCapture();
     }
 
     private async void OnCaptureConfirmed(object? sender, CaptureRegionEventArgs e)
@@ -174,6 +205,7 @@ public sealed class TrayShell : IDisposable
     private void OnCaptureCancelled(object? sender, EventArgs e)
     {
         CloseOverlay();
+        CaptureStatusChanged?.Invoke(this, "Capture cancelled.");
     }
 
     private void OnOverlayClosed(object? sender, EventArgs e)
@@ -289,6 +321,8 @@ public sealed class TrayShell : IDisposable
 
             menuItem.Checked = frameSpec.Mode == CaptureFrameMode.AspectRatio && menuRatio == frameSpec.ToAspectRatio();
         }
+
+        CaptureStatusChanged?.Invoke(this, $"Capture ratio set to {frameSpec}.");
     }
 
     private void SelectOutputMode(OutputMode outputMode)
@@ -297,21 +331,23 @@ public sealed class TrayShell : IDisposable
         _settings.OutputMode = outputMode;
         SaveSettings();
 
-        if (_outputMenuItem is null)
+        if (_outputMenuItem is not null)
         {
-            return;
-        }
-
-        foreach (WinForms.ToolStripItem item in _outputMenuItem.DropDownItems)
-        {
-            if (item is not WinForms.ToolStripMenuItem menuItem)
+            foreach (WinForms.ToolStripItem item in _outputMenuItem.DropDownItems)
             {
-                continue;
-            }
+                if (item is not WinForms.ToolStripMenuItem menuItem)
+                {
+                    continue;
+                }
 
-            menuItem.Checked = (outputMode == OutputMode.ClipboardOnly && menuItem.Text == "Clipboard Only")
-                || (outputMode == OutputMode.ClipboardAndSave && menuItem.Text == "Clipboard + Save");
+                menuItem.Checked = (outputMode == OutputMode.ClipboardOnly && menuItem.Text == "Clipboard Only")
+                    || (outputMode == OutputMode.ClipboardAndSave && menuItem.Text == "Clipboard + Save");
+            }
         }
+
+        CaptureStatusChanged?.Invoke(this, outputMode == OutputMode.ClipboardOnly
+            ? "Output set to clipboard only."
+            : "Output set to clipboard and save.");
     }
 
     private void SaveSettings()
@@ -333,15 +369,18 @@ public sealed class TrayShell : IDisposable
             if (string.IsNullOrWhiteSpace(savedPath))
             {
                 ShowStatus("FrameSnap", "Copied to clipboard.");
+                CaptureStatusChanged?.Invoke(this, "Copied snip to clipboard.");
                 return;
             }
 
             ShowStatus("FrameSnap", $"Copied and saved to {savedPath}");
+            CaptureStatusChanged?.Invoke(this, $"Copied and saved to {savedPath}");
             return;
         }
 
         var message = string.IsNullOrWhiteSpace(errorMessage) ? "Capture failed." : $"Capture failed: {errorMessage}";
         ShowStatus("FrameSnap Error", message, WinForms.ToolTipIcon.Error);
+        CaptureStatusChanged?.Invoke(this, message);
     }
 
     public void ShowStatus(string title, string text, WinForms.ToolTipIcon icon = WinForms.ToolTipIcon.Info)

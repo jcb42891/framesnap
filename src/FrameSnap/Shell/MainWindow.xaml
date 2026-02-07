@@ -1,0 +1,79 @@
+<Window x:Class="FrameSnap.Shell.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FrameSnap"
+        Height="120"
+        Width="700"
+        MinHeight="120"
+        MinWidth="650"
+        ResizeMode="CanMinimize"
+        Background="#FFF3F4F6"
+        WindowStartupLocation="CenterScreen">
+    <Border Background="#FFE9EDF2" BorderBrush="#FFD6DCE4" BorderThickness="0,0,0,1" Padding="16,12">
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="12" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="130" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="175" />
+                <ColumnDefinition Width="20" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Button x:Name="NewSnipButton"
+                    Grid.Column="0"
+                    Content="+ New"
+                    Width="96"
+                    Height="36"
+                    FontSize="16"
+                    Padding="0"
+                    VerticalContentAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    Click="OnNewSnipClicked" />
+
+            <TextBlock Grid.Column="2"
+                       Text="Ratio:"
+                       VerticalAlignment="Center"
+                       Foreground="#FF38414D" />
+            <ComboBox x:Name="RatioComboBox"
+                      Grid.Column="3"
+                      Height="34"
+                      Padding="8,0,26,0"
+                      VerticalContentAlignment="Center"
+                      SelectionChanged="OnRatioSelectionChanged"
+                      DropDownClosed="OnRatioDropDownClosed" />
+
+            <TextBlock Grid.Column="5"
+                       Text="Output:"
+                       VerticalAlignment="Center"
+                       Foreground="#FF38414D" />
+            <ComboBox x:Name="OutputComboBox"
+                      Grid.Column="6"
+                      Height="34"
+                      Padding="8,0,26,0"
+                      VerticalContentAlignment="Center"
+                      SelectionChanged="OnOutputSelectionChanged">
+                <ComboBoxItem Content="Clipboard Only" Tag="ClipboardOnly" />
+                <ComboBoxItem Content="Clipboard + Save" Tag="ClipboardAndSave" />
+            </ComboBox>
+
+            <Border Grid.Column="8"
+                    Margin="0,0,0,0"
+                    VerticalAlignment="Center"
+                    Background="#FFF7F9FB"
+                    BorderBrush="#FFD6DCE4"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="10,8">
+                <TextBlock x:Name="StatusText"
+                           Text="Hotkey: Ctrl+Shift+S"
+                           Foreground="#FF4A5563"
+                           FontSize="13"
+                           TextTrimming="CharacterEllipsis" />
+            </Border>
+        </Grid>
+    </Border>
+</Window>

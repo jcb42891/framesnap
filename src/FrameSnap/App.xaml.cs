@@ -8,6 +8,7 @@ namespace FrameSnap;
 public partial class App : Application
 {
     private TrayShell? _trayShell;
+    private MainWindow? _mainWindow;
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -16,6 +17,9 @@ public partial class App : Application
         _trayShell = new TrayShell(new SettingsStore());
         _trayShell.CaptureRequested += OnCaptureRequested;
         _trayShell.Start();
+
+        _mainWindow = new MainWindow(_trayShell);
+        _mainWindow.Show();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -26,6 +30,8 @@ public partial class App : Application
             _trayShell.CaptureRequested -= OnCaptureRequested;
             _trayShell.Dispose();
         }
+
+        _mainWindow = null;
 
         base.OnExit(e);
     }
