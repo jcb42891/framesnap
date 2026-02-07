@@ -28,6 +28,7 @@ public sealed class TrayShell : IDisposable
     private bool _captureSessionActive;
 
     public event EventHandler? CaptureRequested;
+    public event EventHandler? WindowOpenRequested;
     public event EventHandler<string>? CaptureStatusChanged;
 
     public TrayShell(SettingsStore settingsStore)
@@ -53,6 +54,7 @@ public sealed class TrayShell : IDisposable
             Visible = false,
             ContextMenuStrip = BuildMenu()
         };
+        _notifyIcon.MouseClick += OnNotifyIconMouseClick;
     }
 
     public CaptureFrameSpec SelectedFrameSpec => _selectedFrameSpec;
@@ -103,6 +105,7 @@ public sealed class TrayShell : IDisposable
         CloseOverlay();
         _hotkeyManager.HotkeyPressed -= OnHotkeyPressed;
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        _notifyIcon.MouseClick -= OnNotifyIconMouseClick;
         _hotkeyManager.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
@@ -164,6 +167,16 @@ public sealed class TrayShell : IDisposable
     private void OnHotkeyPressed(object? sender, EventArgs e)
     {
         RequestCapture();
+    }
+
+    private void OnNotifyIconMouseClick(object? sender, WinForms.MouseEventArgs e)
+    {
+        if (e.Button != WinForms.MouseButtons.Left)
+        {
+            return;
+        }
+
+        WindowOpenRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private async void OnCaptureConfirmed(object? sender, CaptureRegionEventArgs e)

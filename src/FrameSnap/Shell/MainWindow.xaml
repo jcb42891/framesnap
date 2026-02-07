@@ -19,8 +19,6 @@
                 <ColumnDefinition Width="20" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="175" />
-                <ColumnDefinition Width="20" />
-                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
             <Button x:Name="NewSnipButton"
@@ -63,21 +61,6 @@
                 <ComboBoxItem Content="Clipboard Only" Tag="ClipboardOnly" />
                 <ComboBoxItem Content="Clipboard + Save" Tag="ClipboardAndSave" />
             </ComboBox>
-
-            <Border Grid.Column="8"
-                    Margin="0,0,0,0"
-                    VerticalAlignment="Center"
-                    Background="#FFF7F9FB"
-                    BorderBrush="#FFD6DCE4"
-                    BorderThickness="1"
-                    CornerRadius="6"
-                    Padding="10,8">
-                <TextBlock x:Name="StatusText"
-                           Text="Hotkey: Ctrl+Shift+S"
-                           Foreground="#FF4A5563"
-                           FontSize="13"
-                           TextTrimming="CharacterEllipsis" />
-            </Border>
         </Grid>
     </Border>
 </Window>

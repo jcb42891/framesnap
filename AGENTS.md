@@ -55,6 +55,8 @@ Use this checklist to keep delivery on track.
 - [x] Add a windowed control UI with snipping-tool-inspired layout while preserving tray and hotkey entry points.
 - [x] Wire window controls for capture start, ratio selection, and output mode selection.
 - [x] Surface capture status feedback in the window status area.
+- [x] Remove right-side status panel from the window UI.
+- [x] Open or restore the control window on tray icon left-click.
 
 ### Phase M4: Branding Polish
 - [x] Add FrameSnap logo asset and wire it to app, window, and tray icons.
