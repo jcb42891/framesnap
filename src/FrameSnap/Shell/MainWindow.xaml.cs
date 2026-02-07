@@ -45,7 +45,16 @@ public partial class MainWindow : Window
 
         if (selectedFrameSpec.Mode == CaptureFrameMode.AspectRatio)
         {
-            RatioComboBox.SelectedItem = selectedFrameSpec.ToAspectRatio().ToString();
+            var selectedRatio = selectedFrameSpec.ToAspectRatio().ToString();
+            if (RatioComboBox.Items.Contains(selectedRatio))
+            {
+                RatioComboBox.SelectedItem = selectedRatio;
+            }
+            else
+            {
+                RatioComboBox.SelectedItem = "Custom...";
+                StatusText.Text = $"Using custom size: {selectedFrameSpec}";
+            }
         }
         else
         {
