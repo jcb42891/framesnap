@@ -36,11 +36,13 @@
 
             <TextBlock Grid.Column="2"
                        Text="Ratio:"
+                       Margin="0,0,10,0"
                        VerticalAlignment="Center"
                        Foreground="#FF38414D" />
             <ComboBox x:Name="RatioComboBox"
                       Grid.Column="3"
                       Height="34"
+                      Margin="4,0,0,0"
                       Padding="8,0,26,0"
                       VerticalContentAlignment="Center"
                       SelectionChanged="OnRatioSelectionChanged"
@@ -48,11 +50,13 @@
 
             <TextBlock Grid.Column="5"
                        Text="Output:"
+                       Margin="0,0,10,0"
                        VerticalAlignment="Center"
                        Foreground="#FF38414D" />
             <ComboBox x:Name="OutputComboBox"
                       Grid.Column="6"
                       Height="34"
+                      Margin="4,0,0,0"
                       Padding="8,0,26,0"
                       VerticalContentAlignment="Center"
                       SelectionChanged="OnOutputSelectionChanged">
