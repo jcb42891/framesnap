@@ -50,6 +50,12 @@ Use this checklist to keep delivery on track.
 - [x] Verify hotkey behavior after sleep/resume and app restart.
 - [x] Add basic user feedback for success/failure (status text or toast).
 
+
+### Phase M3: Windowed Control Surface
+- [x] Add a windowed control UI with snipping-tool-inspired layout while preserving tray and hotkey entry points.
+- [x] Wire window controls for capture start, ratio selection, and output mode selection.
+- [x] Surface capture status feedback in the window status area.
+
 ### Validation Checklist (Required Before Calling MVP Done)
 - [ ] Test on single monitor at 100% DPI.
 - [ ] Test on multi-monitor with at least one non-100% DPI monitor.

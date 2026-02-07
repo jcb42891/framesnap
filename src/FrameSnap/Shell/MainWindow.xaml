@@ -1,0 +1,71 @@
+<Window x:Class="FrameSnap.Shell.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="FrameSnap"
+        Height="300"
+        Width="520"
+        MinHeight="280"
+        MinWidth="500"
+        Background="#FFF3F4F6"
+        WindowStartupLocation="CenterScreen">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="72" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border Grid.Row="0" Background="#FFE9EDF2" BorderBrush="#FFD6DCE4" BorderThickness="0,0,0,1" Padding="16,12">
+            <DockPanel LastChildFill="False">
+                <Button x:Name="NewSnipButton"
+                        Content="+ New"
+                        Width="88"
+                        Height="36"
+                        FontSize="16"
+                        Margin="0,0,14,0"
+                        Click="OnNewSnipClicked" />
+
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="Ratio:" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#FF38414D" />
+                    <ComboBox x:Name="RatioComboBox"
+                              Width="130"
+                              Height="30"
+                              SelectionChanged="OnRatioSelectionChanged" />
+
+                    <TextBlock Text="Output:" VerticalAlignment="Center" Margin="14,0,6,0" Foreground="#FF38414D" />
+                    <ComboBox x:Name="OutputComboBox"
+                              Width="160"
+                              Height="30"
+                              SelectionChanged="OnOutputSelectionChanged">
+                        <ComboBoxItem Content="Clipboard Only" Tag="ClipboardOnly" />
+                        <ComboBoxItem Content="Clipboard + Save" Tag="ClipboardAndSave" />
+                    </ComboBox>
+                </StackPanel>
+            </DockPanel>
+        </Border>
+
+        <Grid Grid.Row="1">
+            <TextBlock x:Name="InstructionText"
+                       Margin="24,18,24,0"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Top"
+                       FontSize="23"
+                       Foreground="#FF24292E"
+                       TextAlignment="Center"
+                       TextWrapping="Wrap"
+                       Text="Press Windows logo key + Shift + S to start a snip." />
+
+            <Border VerticalAlignment="Bottom"
+                    Margin="20,0,20,18"
+                    Background="#FFF7F9FB"
+                    BorderBrush="#FFD6DCE4"
+                    BorderThickness="1"
+                    CornerRadius="6"
+                    Padding="10,8">
+                <TextBlock x:Name="StatusText"
+                           Text="Ready"
+                           Foreground="#FF4A5563"
+                           FontSize="13" />
+            </Border>
+        </Grid>
+    </Grid>
+</Window>
