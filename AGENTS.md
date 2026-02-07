@@ -56,6 +56,9 @@ Use this checklist to keep delivery on track.
 - [x] Wire window controls for capture start, ratio selection, and output mode selection.
 - [x] Surface capture status feedback in the window status area.
 
+### Phase M4: Branding Polish
+- [x] Add FrameSnap logo asset and wire it to app, window, and tray icons.
+
 ### Validation Checklist (Required Before Calling MVP Done)
 - [ ] Test on single monitor at 100% DPI.
 - [ ] Test on multi-monitor with at least one non-100% DPI monitor.
