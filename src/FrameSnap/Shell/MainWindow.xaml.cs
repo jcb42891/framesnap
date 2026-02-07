@@ -72,29 +72,6 @@ public partial class MainWindow : Window
 
         if (selected == "Custom...")
         {
-            var input = Microsoft.VisualBasic.Interaction.InputBox(
-                "Use W:H (example: 5:4) for ratio mode, or WxH (example: 1920x1080) for exact pixels.",
-                "Custom Capture Size",
-                _trayShell.SelectedFrameSpec.ToString());
-
-            if (string.IsNullOrWhiteSpace(input))
-            {
-                SyncFromSettings();
-                return;
-            }
-
-            if (!_trayShell.TryUpdateFrameSpec(input.Trim()))
-            {
-                System.Windows.MessageBox.Show(
-                    "Invalid format. Use W:H for ratio mode or WxH for exact pixel mode.",
-                    "Invalid Capture Format",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Warning);
-                SyncFromSettings();
-                return;
-            }
-
-            StatusText.Text = $"Using custom size: {_trayShell.SelectedFrameSpec}";
             return;
         }
 
@@ -104,6 +81,43 @@ public partial class MainWindow : Window
         }
 
         _trayShell.UpdateFrameSpec(CaptureFrameSpec.FromRatio(ratio));
+    }
+
+    private void OnRatioDropDownClosed(object sender, EventArgs e)
+    {
+        if (_isInitializing || RatioComboBox.SelectedItem?.ToString() != "Custom...")
+        {
+            return;
+        }
+
+        PromptForCustomCaptureSize();
+    }
+
+    private void PromptForCustomCaptureSize()
+    {
+        var input = Microsoft.VisualBasic.Interaction.InputBox(
+            "Use W:H (example: 5:4) for ratio mode, or WxH (example: 1920x1080) for exact pixels.",
+            "Custom Capture Size",
+            _trayShell.SelectedFrameSpec.ToString());
+
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            SyncFromSettings();
+            return;
+        }
+
+        if (!_trayShell.TryUpdateFrameSpec(input.Trim()))
+        {
+            System.Windows.MessageBox.Show(
+                "Invalid format. Use W:H for ratio mode or WxH for exact pixel mode.",
+                "Invalid Capture Format",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            SyncFromSettings();
+            return;
+        }
+
+        StatusText.Text = $"Using custom size: {_trayShell.SelectedFrameSpec}";
     }
 
     private void OnOutputSelectionChanged(object sender, SelectionChangedEventArgs e)
