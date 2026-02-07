@@ -13,6 +13,7 @@ namespace FrameSnap.Shell;
 public sealed class TrayShell : IDisposable
 {
     private readonly WinForms.NotifyIcon _notifyIcon;
+    private readonly System.Drawing.Icon _trayIcon;
     private readonly HotkeyManager _hotkeyManager;
     private readonly CaptureEngine _captureEngine;
     private readonly ClipboardOutputService _clipboardOutputService;
@@ -27,6 +28,7 @@ public sealed class TrayShell : IDisposable
     private bool _captureSessionActive;
 
     public event EventHandler? CaptureRequested;
+    public event EventHandler? WindowOpenRequested;
     public event EventHandler<string>? CaptureStatusChanged;
 
     public TrayShell(SettingsStore settingsStore)
@@ -43,14 +45,16 @@ public sealed class TrayShell : IDisposable
         _fileOutputService = new FileOutputService();
         _hotkeyManager = new HotkeyManager();
         _hotkeyManager.HotkeyPressed += OnHotkeyPressed;
+        _trayIcon = LoadTrayIcon();
 
         _notifyIcon = new WinForms.NotifyIcon
         {
             Text = "FrameSnap",
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = _trayIcon,
             Visible = false,
             ContextMenuStrip = BuildMenu()
         };
+        _notifyIcon.MouseClick += OnNotifyIconMouseClick;
     }
 
     public CaptureFrameSpec SelectedFrameSpec => _selectedFrameSpec;
@@ -101,9 +105,11 @@ public sealed class TrayShell : IDisposable
         CloseOverlay();
         _hotkeyManager.HotkeyPressed -= OnHotkeyPressed;
         SystemEvents.PowerModeChanged -= OnPowerModeChanged;
+        _notifyIcon.MouseClick -= OnNotifyIconMouseClick;
         _hotkeyManager.Dispose();
         _notifyIcon.Visible = false;
         _notifyIcon.Dispose();
+        _trayIcon.Dispose();
     }
 
     private WinForms.ContextMenuStrip BuildMenu()
@@ -161,6 +167,16 @@ public sealed class TrayShell : IDisposable
     private void OnHotkeyPressed(object? sender, EventArgs e)
     {
         RequestCapture();
+    }
+
+    private void OnNotifyIconMouseClick(object? sender, WinForms.MouseEventArgs e)
+    {
+        if (e.Button != WinForms.MouseButtons.Left)
+        {
+            return;
+        }
+
+        WindowOpenRequested?.Invoke(this, EventArgs.Empty);
     }
 
     private async void OnCaptureConfirmed(object? sender, CaptureRegionEventArgs e)
@@ -348,5 +364,28 @@ public sealed class TrayShell : IDisposable
 
         _hotkeyManager.UnregisterDefaultHotkey();
         _hotkeyManager.RegisterDefaultHotkey();
+    }
+
+    private static System.Drawing.Icon LoadTrayIcon()
+    {
+        try
+        {
+            var iconUri = new Uri("pack://application:,,,/Assets/FrameSnap.ico");
+            var resourceInfo = System.Windows.Application.GetResourceStream(iconUri);
+            if (resourceInfo?.Stream is null)
+            {
+                return (System.Drawing.Icon)System.Drawing.SystemIcons.Application.Clone();
+            }
+
+            using (resourceInfo.Stream)
+            using (var icon = new System.Drawing.Icon(resourceInfo.Stream))
+            {
+                return (System.Drawing.Icon)icon.Clone();
+            }
+        }
+        catch
+        {
+            return (System.Drawing.Icon)System.Drawing.SystemIcons.Application.Clone();
+        }
     }
 }

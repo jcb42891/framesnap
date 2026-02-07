@@ -16,10 +16,9 @@ public partial class App : Application
         RegisterGlobalExceptionHandlers();
         _trayShell = new TrayShell(new SettingsStore());
         _trayShell.CaptureRequested += OnCaptureRequested;
+        _trayShell.WindowOpenRequested += OnWindowOpenRequested;
         _trayShell.Start();
-
-        _mainWindow = new MainWindow(_trayShell);
-        _mainWindow.Show();
+        ShowMainWindow();
     }
 
     protected override void OnExit(ExitEventArgs e)
@@ -28,6 +27,7 @@ public partial class App : Application
         if (_trayShell is not null)
         {
             _trayShell.CaptureRequested -= OnCaptureRequested;
+            _trayShell.WindowOpenRequested -= OnWindowOpenRequested;
             _trayShell.Dispose();
         }
 
@@ -44,6 +44,11 @@ public partial class App : Application
         }
 
         _trayShell.ShowOverlay();
+    }
+
+    private void OnWindowOpenRequested(object? sender, EventArgs e)
+    {
+        Dispatcher.Invoke(ShowMainWindow);
     }
 
     private void RegisterGlobalExceptionHandlers()
@@ -76,5 +81,42 @@ public partial class App : Application
     {
         _trayShell?.ShowStatus("FrameSnap Error", e.Exception.Message, System.Windows.Forms.ToolTipIcon.Error);
         e.SetObserved();
+    }
+
+    private void ShowMainWindow()
+    {
+        if (_trayShell is null)
+        {
+            return;
+        }
+
+        if (_mainWindow is null)
+        {
+            _mainWindow = new MainWindow(_trayShell);
+            _mainWindow.Closed += OnMainWindowClosed;
+        }
+
+        if (!_mainWindow.IsVisible)
+        {
+            _mainWindow.Show();
+        }
+
+        if (_mainWindow.WindowState == WindowState.Minimized)
+        {
+            _mainWindow.WindowState = WindowState.Normal;
+        }
+
+        _mainWindow.Activate();
+        _mainWindow.Focus();
+    }
+
+    private void OnMainWindowClosed(object? sender, EventArgs e)
+    {
+        if (_mainWindow is not null)
+        {
+            _mainWindow.Closed -= OnMainWindowClosed;
+        }
+
+        _mainWindow = null;
     }
 }

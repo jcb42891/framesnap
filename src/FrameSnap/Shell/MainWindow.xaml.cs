@@ -18,14 +18,6 @@ public partial class MainWindow : Window
         PopulateRatioOptions();
         SyncFromSettings();
         _isInitializing = false;
-
-        _trayShell.CaptureStatusChanged += OnCaptureStatusChanged;
-    }
-
-    protected override void OnClosed(EventArgs e)
-    {
-        _trayShell.CaptureStatusChanged -= OnCaptureStatusChanged;
-        base.OnClosed(e);
     }
 
     private void PopulateRatioOptions()
@@ -53,13 +45,11 @@ public partial class MainWindow : Window
             else
             {
                 RatioComboBox.SelectedItem = "Custom...";
-                StatusText.Text = $"Using custom size: {selectedFrameSpec}";
             }
         }
         else
         {
             RatioComboBox.SelectedItem = "Custom...";
-            StatusText.Text = $"Using custom size: {selectedFrameSpec}";
         }
 
         OutputComboBox.SelectedIndex = selectedOutputMode == OutputMode.ClipboardOnly ? 0 : 1;
@@ -116,7 +106,6 @@ public partial class MainWindow : Window
         }
 
         _trayShell.UpdateFrameSpec(dialog.SelectedFrameSpec.Value);
-        StatusText.Text = $"Using custom size: {_trayShell.SelectedFrameSpec}";
     }
 
     private void OnOutputSelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -131,16 +120,5 @@ public partial class MainWindow : Window
             : OutputMode.ClipboardOnly;
 
         _trayShell.UpdateOutputMode(mode);
-    }
-
-    private void OnCaptureStatusChanged(object? sender, string status)
-    {
-        if (status.StartsWith("Copied snip to", StringComparison.OrdinalIgnoreCase) ||
-            status.StartsWith("Copied and saved to", StringComparison.OrdinalIgnoreCase))
-        {
-            return;
-        }
-
-        Dispatcher.Invoke(() => StatusText.Text = status);
     }
 }
